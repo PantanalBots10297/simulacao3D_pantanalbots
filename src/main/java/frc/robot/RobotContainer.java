@@ -66,6 +66,16 @@ public class RobotContainer {
         tank.drive(forward, -backward, -rotation);
       }
     }));
+
+    // =========================================================
+    // DEBUG TEMPORÁRIO (pode apagar depois que o intake funcionar)
+    // Veja em SmartDashboard/Debug no AdvantageScope.
+    // =========================================================
+    new Trigger(() -> true).whileTrue(Commands.run(() -> {
+      SmartDashboard.putBoolean("Debug/LB apertado", driver.leftBumper().getAsBoolean());
+      SmartDashboard.putBoolean("Debug/Fuel dentro", tank.isFuelInsideRobot());
+      SmartDashboard.putNumber("Debug/Elevador", SimElevator.getRealPosition());
+    }).ignoringDisable(true));
   }
 
   private void configureBindings() {
@@ -94,10 +104,22 @@ public class RobotContainer {
 
   }
 
+  /**
+   * Intake no L1. Só funciona enquanto não há peça dentro do robô.
+   * A condição é checada continuamente (Trigger), não só ao apertar.
+   *
+   * Se quiser exigir o elevador alto de novo, troque a condição por:
+   * () -> !tank.isFuelInsideRobot() && SimElevator.getRealPosition() >= 200
+   */
   void coletar_Ground() {
-    driver.leftBumper().whileTrue(
-        mSimIntake.CMDintakeOn().onlyIf(() -> !tank.isFuelInsideRobot() && SimElevator.getRealPosition() >= 200));
-    driver.leftBumper().whileFalse(mSimIntake.CMDintakeOff());
+
+    Trigger podeColetar = new Trigger(
+        () -> !tank.isFuelInsideRobot());
+
+    Trigger coletando = driver.leftBumper().and(podeColetar);
+
+    coletando.whileTrue(mSimIntake.CMDintakeOn());
+    coletando.whileFalse(mSimIntake.CMDintakeOff());
   }
 
   void autoHand() {
