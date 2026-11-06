@@ -83,7 +83,12 @@ public class RobotContainer {
     driver.start().onTrue(tank.runOnce(() -> tank.resetPose(new Pose2d(2.0, 4.0, new Rotation2d()))));
 
     driver.povUp().onTrue(mSimElevator.CMDsetPosition(400, 10));
-    driver.povDown().onTrue(mSimElevator.CMDsetPosition(0, 3));
+    // Descer com segurança: primeiro o braço volta a 0° (centro), espera chegar,
+    // e só então o elevador desce. Assim o braço não desce virado e não bate nas caixas.
+    driver.povDown().onTrue(Commands.sequence(
+        mSimHand.CMDsetAngle(0, 3),
+        Commands.waitUntil(() -> Math.abs(SimHand.getRealAngle()) < 5),
+        mSimElevator.CMDsetPosition(0, 3)));
 
     // Proteção: o braço só gira para os lados com o elevador em cima.
     // Com o elevador embaixo, esses botões não fazem nada (o braço bateria nas caixas).
