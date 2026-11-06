@@ -105,16 +105,14 @@ public class RobotContainer {
   }
 
   /**
-   * Intake no L1. Só funciona enquanto não há peça dentro do robô.
+   * Intake no L1. Só funciona enquanto não há peça dentro do robô E o elevador
+   * está acima de 200 (proteção: o braço não bate no intake).
    * A condição é checada continuamente (Trigger), não só ao apertar.
-   *
-   * Se quiser exigir o elevador alto de novo, troque a condição por:
-   * () -> !tank.isFuelInsideRobot() && SimElevator.getRealPosition() >= 200
    */
   void coletar_Ground() {
 
     Trigger podeColetar = new Trigger(
-        () -> !tank.isFuelInsideRobot());
+        () -> !tank.isFuelInsideRobot() && SimElevator.getRealPosition() >= 200);
 
     Trigger coletando = driver.leftBumper().and(podeColetar);
 
