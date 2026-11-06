@@ -6,6 +6,8 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class SimHand extends SubsystemBase {
@@ -90,6 +92,10 @@ public class SimHand extends SubsystemBase {
         setAngle = map(angle, encoderMin, encoderMax, HAND_MIN_ANGLE, HAND_MAX_ANGLE);
     }
 
+    public Command CMDsetAngle(double angle, double kP) {
+        return Commands.runOnce(() -> setAngle(angle, kP));
+    }
+
     /**
      * Retorna o ângulo atual do Hand no CAD, em radianos.
      */
@@ -120,6 +126,10 @@ public class SimHand extends SubsystemBase {
      */
     public void setVelocity(double velocity) {
         setVelocity = velocity;
+    }
+
+    public Command CMDsetVelocity(double velocity) {
+        return Commands.runOnce(() -> setVelocity(velocity));
     }
 
     /**
