@@ -67,6 +67,15 @@ public class RobotContainer {
       }
     }));
 
+    // =========================================================
+    // DEBUG TEMPORÁRIO (pode apagar depois que o intake funcionar)
+    // Veja em SmartDashboard/Debug no AdvantageScope.
+    // =========================================================
+    new Trigger(() -> true).whileTrue(Commands.run(() -> {
+      SmartDashboard.putBoolean("Debug/LB apertado", driver.leftBumper().getAsBoolean());
+      SmartDashboard.putBoolean("Debug/Fuel dentro", tank.isFuelInsideRobot());
+      SmartDashboard.putNumber("Debug/Elevador", SimElevator.getRealPosition());
+    }).ignoringDisable(true));
   }
 
   private void configureBindings() {
