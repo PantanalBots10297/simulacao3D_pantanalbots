@@ -94,7 +94,8 @@ public class RobotContainer {
   }
 
   void coletar_Ground() {
-    driver.leftBumper().whileTrue(mSimIntake.CMDintakeOn().onlyIf(() -> !tank.isFuelInsideRobot()));
+    driver.leftBumper().whileTrue(
+        mSimIntake.CMDintakeOn().onlyIf(() -> !tank.isFuelInsideRobot() && SimElevator.getRealPosition() >= 200));
     driver.leftBumper().whileFalse(mSimIntake.CMDintakeOff());
   }
 
