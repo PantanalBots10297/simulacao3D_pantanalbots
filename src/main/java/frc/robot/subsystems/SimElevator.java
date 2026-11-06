@@ -101,6 +101,8 @@ public class SimElevator extends SubsystemBase {
     private void updateVisualization() {
         Logger.recordOutput("SubSystemSim/Elevator", new Pose3d[] {
                 new Pose3d(0.0, 0.0, currentPosition, new Rotation3d()) });
+
+        Logger.recordOutput("SubSystemSim/Elevator/getPosition", getRealPosition());
     }
 
     // =========================================================
