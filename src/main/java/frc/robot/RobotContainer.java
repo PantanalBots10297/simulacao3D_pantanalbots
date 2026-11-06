@@ -38,6 +38,7 @@ public class RobotContainer {
     autoChooser.addOption("Quadrado", Autos.quadrado(tank));
     autoChooser.addOption("Reto", Autos.reto(tank));
     autoChooser.addOption("autoZigZag", Autos.autoZigZag(tank));
+    // autoChooser.addOption("Algae_3", Autos.Algae_3(tank));
 
     SmartDashboard.putData("Auto Selector", autoChooser);
 
@@ -89,7 +90,7 @@ public class RobotContainer {
     autoHand();
     // deposit_Pose();
 
-    driver.y().onTrue(tank.depositFuelCommand());
+    driver.y().onTrue(deposit());
 
   }
 
