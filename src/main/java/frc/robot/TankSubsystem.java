@@ -109,6 +109,10 @@ public class TankSubsystem extends SubsystemBase {
         odometry.resetPosition(heading, leftDistanceMeters, rightDistanceMeters, pose);
     }
 
+    public Command CMDresetPose(Pose2d pose){
+        return Commands.runOnce(() -> resetPose(pose));
+    }
+
     // =========================================================
     // CÁLCULOS DE POSIÇÃO
     // =========================================================
