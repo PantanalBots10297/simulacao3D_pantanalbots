@@ -66,13 +66,13 @@ public class FuelSimulation {
     }
 
     public FuelSimulation() {
-        addFuel(3.0, 2.0);
-        addFuel(4.0, 2.0);
-        addFuel(5.0, 2.0);
+        addFuel(1.223, 2.200); // Game piece 1
+        addFuel(1.223, 4.023); // Game piece 2
+        addFuel(1.223, 5.858); // Game piece 3
 
-        addFuel(3.0, 6.0);
-        addFuel(4.0, 6.0);
-        addFuel(5.0, 6.0);
+        // addFuel(3.0, 6.0);
+        // addFuel(4.0, 6.0);
+        // addFuel(5.0, 6.0);
     }
 
     public void addFuel(double x, double y) {
