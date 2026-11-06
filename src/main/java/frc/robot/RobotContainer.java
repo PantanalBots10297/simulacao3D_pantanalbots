@@ -85,10 +85,12 @@ public class RobotContainer {
     driver.povUp().onTrue(mSimElevator.CMDsetPosition(400, 10));
     driver.povDown().onTrue(mSimElevator.CMDsetPosition(0, 3));
 
-    driver.povLeft().onTrue(Commands.runOnce(() -> mSimHand.setAngle(-45, 3)));
-    driver.povRight().onTrue(Commands.runOnce(() -> mSimHand.setAngle(45, 3)));
-    driver.a().onTrue(Commands.runOnce(() -> mSimHand.setAngle(135, 3)));
-    driver.b().onTrue(Commands.runOnce(() -> mSimHand.setAngle(-135, 3)));
+    // Proteção: o braço só gira para os lados com o elevador em cima.
+    // Com o elevador embaixo, esses botões não fazem nada (o braço bateria nas caixas).
+    driver.povLeft().onTrue(Commands.runOnce(() -> mSimHand.setAngle(-45, 3)).onlyIf(this::elevadorEmCima));
+    driver.povRight().onTrue(Commands.runOnce(() -> mSimHand.setAngle(45, 3)).onlyIf(this::elevadorEmCima));
+    driver.a().onTrue(Commands.runOnce(() -> mSimHand.setAngle(135, 3)).onlyIf(this::elevadorEmCima));
+    driver.b().onTrue(Commands.runOnce(() -> mSimHand.setAngle(-135, 3)).onlyIf(this::elevadorEmCima));
 
     driver.back().onTrue(Commands.runOnce(() -> mSimHand.setAngle(0, 3)));
 
@@ -109,6 +111,14 @@ public class RobotContainer {
    * está acima de 200 (proteção: o braço não bate no intake).
    * A condição é checada continuamente (Trigger), não só ao apertar.
    */
+  /** Acima desta altura do elevador (0 a 400), o braço pode girar sem bater nas caixas. */
+  private static final double ELEVADOR_EM_CIMA = 200;
+
+  /** O elevador está alto o bastante para o braço girar? */
+  boolean elevadorEmCima() {
+    return SimElevator.getRealPosition() >= ELEVADOR_EM_CIMA;
+  }
+
   void coletar_Ground() {
 
     Trigger podeColetar = new Trigger(
