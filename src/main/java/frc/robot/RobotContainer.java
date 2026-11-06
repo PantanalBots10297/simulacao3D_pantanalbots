@@ -81,8 +81,12 @@ public class RobotContainer {
 
     driver.back().onTrue(Commands.runOnce(() -> mSimHand.setAngle(0, 3)));
 
+    /*
+     * Positivo = Depositar
+     * Negativo = Coletar
+     */
     coletar_Ground();
-    // autoHand();
+    autoHand();
     // deposit_Pose();
 
     driver.y().onTrue(tank.depositFuelCommand());
@@ -93,7 +97,23 @@ public class RobotContainer {
     driver.leftBumper().whileTrue(mSimIntake.CMDintakeOn().onlyIf(() -> !tank.isFuelInsideRobot()));
     driver.leftBumper().whileFalse(mSimIntake.CMDintakeOff());
   }
-  
+
+  void autoHand() {
+
+    BooleanSupplier autoHandOk = () -> tank.isFuelInsideRobot() && !tank.isHandCollected();
+
+    onCommandCondition(autoHandOk, Commands.sequence(
+        mSimElevator.CMDsetPosition(400, 3),
+        Commands.waitUntil(() -> SimElevator.getRealPosition() > 390),
+        mSimHand.CMDsetAngle(0, 3),
+        Commands.waitUntil(() -> Math.abs(SimHand.getRealAngle()) < 5),
+        mSimElevator.CMDsetPosition(0, 3),
+        mSimHand.CMDsetVelocity(-1),
+        Commands.waitSeconds(1),
+        mSimHand.CMDsetVelocity(0)));
+
+  }
+
   public Command getAutonomousCommand() {
     return autoChooser.getSelected();
   }
