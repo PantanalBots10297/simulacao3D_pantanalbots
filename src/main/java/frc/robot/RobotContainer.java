@@ -38,7 +38,8 @@ public class RobotContainer {
     autoChooser.addOption("Quadrado", Autos.quadrado(tank));
     autoChooser.addOption("Reto", Autos.reto(tank));
     autoChooser.addOption("autoZigZag", Autos.autoZigZag(tank));
-    // autoChooser.addOption("Algae_3", Autos.Algae_3(tank));
+    autoChooser.addOption("Atividade 2 - Tres algas (experimental)", Autos.algaeTres(tank, mSimIntake, mSimElevator, mSimHand));
+    autoChooser.addOption("Atividade 2 - Pose 7.8, 4.0, 60", Autos.navegarParaPoseAlvo(tank));
 
     SmartDashboard.putData("Auto Selector", autoChooser);
 
@@ -81,6 +82,9 @@ public class RobotContainer {
   private void configureBindings() {
 
     driver.start().onTrue(tank.runOnce(() -> tank.resetPose(new Pose2d(2.0, 4.0, new Rotation2d()))));
+
+    // Atividade 2 - Desafio 2: X inicia a navegacao autonoma ate a pose alvo.
+    driver.x().onTrue(Autos.navegarParaPoseAlvo(tank));
 
     driver.povUp().onTrue(mSimElevator.CMDsetPosition(400, 10));
     // Descer com segurança: primeiro o braço volta a 0° (centro), espera chegar,
