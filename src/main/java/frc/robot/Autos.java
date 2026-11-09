@@ -42,6 +42,17 @@ public class Autos {
                 tank.driveToPose(6.0, 2.0, -45));
     }
 
+    /**
+     * Atividade 2 - Desafio 2: navegar pela odometria ate a pose solicitada.
+     * O comando parte da pose atual, sem reiniciar o odometro.
+     * Pode ser chamado no modo teleoperado por um botao do controle.
+     */
+    public static Command navegarParaPoseAlvo(TankSubsystem tank) {
+        return Commands.sequence(
+                tank.driveToPose(7.8, 4.0, 60.0),
+                Commands.runOnce(tank::stop, tank));
+    }
+
     public static Command depositGamePiece(TankSubsystem tank) {
         return Commands.sequence(
                 mSimHand.CMDsetVelocity(1),
