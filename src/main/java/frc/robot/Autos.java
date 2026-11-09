@@ -53,6 +53,69 @@ public class Autos {
                 Commands.runOnce(tank::stop, tank));
     }
 
+    // Atividade 2: pontos de coleta obtidos de FuelSimulation.java.
+    // Pontos NET/PROCESSOR abaixo sao somente aproximacoes para bancada;
+    // validar com o mapa escolhido e com o tamanho do robo antes da entrega.
+    private static final double COLETA_X = 1.95;
+    private static final double NET_X = 7.45;
+    private static final double NET_Y = 5.70;
+    private static final double PROCESSOR_X = 5.90;
+    private static final double PROCESSOR_Y = 0.95;
+
+    /** Rota experimental: 2 algas para NET e 1 para PROCESSOR. */
+    public static Command algaeTres(
+            TankSubsystem tank, SimIntake intake, SimElevator elevator, SimHand hand) {
+        return Commands.sequence(
+                tank.CMDresetPose(new Pose2d(7.2, 1.0, Rotation2d.fromDegrees(0))),
+                coletarAlga(tank, intake, elevator, 2.200),
+                pontuar(tank, elevator, hand, NET_X, NET_Y, 135),
+                coletarAlga(tank, intake, elevator, 4.023),
+                pontuar(tank, elevator, hand, NET_X, NET_Y, 135),
+                coletarAlga(tank, intake, elevator, 5.858),
+                pontuar(tank, elevator, hand, PROCESSOR_X, PROCESSOR_Y, 100))
+                .finallyDo(tank::stop);
+    }
+
+    /** Aproxima pelo corredor lateral, liga o intake e espera a transferencia. */
+    private static Command coletarAlga(
+            TankSubsystem tank, SimIntake intake, SimElevator elevator, double y) {
+        return Commands.sequence(
+                elevator.CMDsetPosition(400, 3),
+                Commands.waitUntil(() -> SimElevator.getRealPosition() > 210).withTimeout(4),
+                // O intake fica ativo antes da aproximacao final para capturar a peça.
+                intake.CMDintakeOn().withTimeout(4),
+                tank.driveToPose(COLETA_X, y, 180),
+                Commands.waitUntil(() -> tank.isFuelInsideRobot() || tank.isHandCollected())
+                        .withTimeout(5),
+                intake.CMDintakeOff().withTimeout(4),
+                Commands.waitUntil(tank::isHandCollected).withTimeout(8));
+    }
+
+    /** So pontua quando uma alga foi efetivamente transferida para o Hand. */
+    private static Command pontuar(
+            TankSubsystem tank, SimElevator elevator, SimHand hand,
+            double x, double y, double anguloLancamento) {
+        return Commands.sequence(
+                // Corredor inferior reduz travessias diretas pelo centro do campo;
+                // NAO substitui uma trajetoria validada no PathPlanner.
+                tank.driveToPose(COLETA_X, 1.0, 0),
+                tank.driveToPose(x, 1.0, 0),
+                tank.driveToPose(x, y, 90),
+                Commands.either(
+                        Commands.sequence(
+                                elevator.CMDsetPosition(400, 3),
+                                Commands.waitUntil(() -> SimElevator.getRealPosition() > 210)
+                                        .withTimeout(4),
+                                hand.CMDsetAngle(anguloLancamento, 3),
+                                Commands.waitUntil(
+                                        () -> Math.abs(SimHand.getRealAngle() - anguloLancamento) < 5)
+                                        .withTimeout(4),
+                                depositGamePiece(tank),
+                                hand.CMDsetAngle(0, 3)),
+                        Commands.none(),
+                        tank::isHandCollected));
+    }
+
     public static Command depositGamePiece(TankSubsystem tank) {
         return Commands.sequence(
                 mSimHand.CMDsetVelocity(1),
