@@ -56,7 +56,7 @@ public class Autos {
     // Atividade 2: pontos de coleta obtidos de FuelSimulation.java.
     // Pontos NET/PROCESSOR abaixo sao somente aproximacoes para bancada;
     // validar com o mapa escolhido e com o tamanho do robo antes da entrega.
-    private static final double COLETA_X = 1.95;
+    private static final double COLETA_X = 1.90;
     private static final double NET_X = 7.45;
     private static final double NET_Y = 5.70;
     private static final double PROCESSOR_X = 5.90;
@@ -84,7 +84,8 @@ public class Autos {
                 Commands.waitUntil(() -> SimElevator.getRealPosition() > 210).withTimeout(4),
                 // O intake fica ativo antes da aproximacao final para capturar a peça.
                 intake.CMDintakeOn().withTimeout(4),
-                tank.driveToPose(COLETA_X, y, 180),
+                tank.driveToPose(2.70, y, 180),
+                tank.driveToPoint(COLETA_X, y),
                 Commands.waitUntil(() -> tank.isFuelInsideRobot() || tank.isHandCollected())
                         .withTimeout(5),
                 intake.CMDintakeOff().withTimeout(4),
