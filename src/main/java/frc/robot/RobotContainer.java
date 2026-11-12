@@ -109,6 +109,11 @@ public class RobotContainer {
 
     driver.y().onTrue(deposit());
 
+    // Atividade 2 (prof. Djair) – Desafio 2: segurando o RB, o robô vai sozinho até
+    // X = 7,8 m, Y = 4,0 m e vira para 60°, de onde estiver.
+    // whileTrue: ao soltar o botão o comando é cancelado e o piloto volta a dirigir.
+    driver.rightBumper().whileTrue(tank.driveToPose(7.8, 4.0, 60));
+
   }
 
   /**
