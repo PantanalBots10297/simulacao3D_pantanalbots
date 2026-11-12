@@ -19,6 +19,14 @@ public class FuelSimulation {
 
     private static final double FUEL_RADIUS = 0.15;
 
+    /**
+     * Só para DESENHAR no AdvantageScope. O modelo 3D da Fuel tem uma haste
+     * embaixo da bola, então ele parece flutuar. Esse valor (em metros) abaixa
+     * o modelo para a bola ficar no chão. A física NÃO usa isso.
+     * Se a bola ainda aparecer no alto, aumente; se afundar no chão, diminua.
+     */
+    private static final double FUEL_MODELO_DESLOCAMENTO_Z = 0.24;
+
     private static final double ROBOT_LENGTH = 0.984674;
     private static final double ROBOT_WIDTH = 0.8498;
 
@@ -697,7 +705,7 @@ public class FuelSimulation {
         for (int i = 0; i < fuels.size(); i++) {
             Fuel fuel = fuels.get(i);
 
-            fuelPoses[i] = new Pose3d(fuel.x, fuel.y, fuel.z, new Rotation3d());
+            fuelPoses[i] = new Pose3d(fuel.x, fuel.y, fuel.z - FUEL_MODELO_DESLOCAMENTO_Z, new Rotation3d());
         }
 
         Logger.recordOutput("Simulation/Fuels", fuelPoses);
