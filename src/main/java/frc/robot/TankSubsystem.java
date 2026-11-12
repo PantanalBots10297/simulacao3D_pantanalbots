@@ -14,6 +14,8 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.subsystems.FuelSimulation;
+import frc.robot.subsystems.SimElevator;
+import frc.robot.subsystems.SimHand;
 import frc.robot.subsystems.SimIntake;
 
 public class TankSubsystem extends SubsystemBase {
@@ -32,6 +34,14 @@ public class TankSubsystem extends SubsystemBase {
     private static final double POSITION_KP = 0.5;
     private static final double MAX_FORWARD = 0.5;
     private static final double POSITION_TOLERANCE = 0.05;
+
+    // Tamanho do robô com para-choque (metros), igual ao da FuelSimulation.
+    private static final double ROBO_COMPRIMENTO = 0.984674;
+    private static final double ROBO_LARGURA = 0.8498;
+
+    // Alturas medidas no modelo 3D do MT TANK (metros).
+    private static final double ROBO_ALTURA_TORRE = 1.057;  // topo da torre do elevador, elevador embaixo
+    private static final double RAIO_RODA_GARRA = 0.051;    // rodinhas na ponta da garra
 
     // =========================================================
     // CONTROLE E SIMULAÇÃO
@@ -341,6 +351,77 @@ public class TankSubsystem extends SubsystemBase {
     }
 
     // =========================================================
+    // PAREDES DO CAMPO
+    // =========================================================
+
+    /**
+     * Não deixa o robô atravessar as paredes do campo nem os obstáculos
+     * do meio (Reefs e Barge).
+     *
+     * Se alguma parte do robô passou da parede ou entrou num obstáculo,
+     * coloca o robô de volta encostado nele e corrige a odometria.
+     *
+     * Para os obstáculos, o robô é tratado como um retângulo alinhado ao
+     * campo (metadeX x metadeY). Na diagonal ele fica um pouco "maior" do
+     * que é de verdade e para alguns centímetros antes.
+     */
+    private Pose2d manterDentroDoCampo(Pose2d pose) {
+        double angulo = pose.getRotation().getRadians();
+
+        // Quanto o robô ocupa a partir do centro, em X e em Y do campo.
+        // Muda com o giro: virado de lado, ele ocupa mais espaço em Y.
+        double metadeX = Math.abs(ROBO_COMPRIMENTO / 2.0 * Math.cos(angulo))
+                + Math.abs(ROBO_LARGURA / 2.0 * Math.sin(angulo));
+        double metadeY = Math.abs(ROBO_COMPRIMENTO / 2.0 * Math.sin(angulo))
+                + Math.abs(ROBO_LARGURA / 2.0 * Math.cos(angulo));
+
+        // "Se X passou do limite, X = limite" (o mesmo para Y).
+        double x = MathUtil.clamp(pose.getX(), metadeX, Campo.COMPRIMENTO - metadeX);
+        double y = MathUtil.clamp(pose.getY(), metadeY, Campo.LARGURA - metadeY);
+
+        boolean bateuNaParede = x != pose.getX() || y != pose.getY();
+        Logger.recordOutput("Campo/RoboNaParede", bateuNaParede);
+
+        // Robô mais alto que a treliça da Barge (1,57 m) não passa por baixo dela.
+        double altura = alturaDoRobo();
+        boolean bateNaTrelica = altura > Campo.BARGE_TRELICA_ALTURA;
+        Logger.recordOutput("Campo/AlturaDoRobo", altura);
+        Logger.recordOutput("Campo/RoboAltoDemaisParaBarge", bateNaTrelica);
+
+        // Reefs, Cages e suporte da Barge: se entrou em algum, empurra para fora.
+        Obstaculos.Batida batida = Obstaculos.empurrarParaFora(
+                x, y, metadeX, metadeY, 0.0, Campo.BARGE_BLOQUEIA_ROBO || bateNaTrelica);
+        Logger.recordOutput("Campo/RoboNoObstaculo", batida != null);
+
+        if (batida != null) {
+            x = batida.x;
+            y = batida.y;
+        }
+
+        if (!bateuNaParede && batida == null) {
+            return pose;
+        }
+
+        Pose2d corrigida = new Pose2d(x, y, pose.getRotation());
+        odometry.resetPosition(heading, leftDistanceMeters, rightDistanceMeters, corrigida);
+        return corrigida;
+    }
+
+    /**
+     * Altura do ponto mais alto do robô, em metros, agora.
+     *
+     * É o maior entre:
+     * - o topo da torre, que sobe junto com o elevador (até +0,40 m);
+     * - a ponta da garra, que depende do elevador e do ângulo do braço
+     *   (0° = para baixo; 135° = quase de ponta-cabeça, bem alto).
+     */
+    public static double alturaDoRobo() {
+        double topoDaTorre = ROBO_ALTURA_TORRE + SimElevator.getRawPosition();
+        double pontaDaGarra = SimHand.getWheelCenter().getZ() + RAIO_RODA_GARRA;
+        return Math.max(topoDaTorre, pontaDaGarra);
+    }
+
+    // =========================================================
     // PERIODIC
     // =========================================================
 
@@ -361,8 +442,9 @@ public class TankSubsystem extends SubsystemBase {
         // Simula o giroscópio.
         heading = heading.plus(Rotation2d.fromRadians(angularVelocity * dt));
 
-        // Atualiza odometria.
-        Pose2d pose = odometry.update(heading, leftDistanceMeters, rightDistanceMeters);
+        // Atualiza odometria e não deixa o robô sair do campo.
+        Pose2d pose = manterDentroDoCampo(
+                odometry.update(heading, leftDistanceMeters, rightDistanceMeters));
 
         // Atualiza as game pieces.
         fuelSimulation.update(

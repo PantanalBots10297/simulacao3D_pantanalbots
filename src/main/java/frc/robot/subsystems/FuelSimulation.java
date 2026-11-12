@@ -8,6 +8,8 @@ import org.littletonrobotics.junction.Logger;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
+import frc.robot.Campo;
+import frc.robot.Obstaculos;
 
 public class FuelSimulation {
 
@@ -34,6 +36,12 @@ public class FuelSimulation {
     private static final double GRAVITY = 9.81;
     private static final double LAUNCH_SPEED = 4.0;
 
+    // Quanto da velocidade a Fuel mantém ao bater na parede (0 = para, 1 = não perde nada).
+    private static final double QUIQUE_PAREDE = 0.5;
+
+    // Quanto da velocidade sobra quando uma Fuel bate na outra (0 a 1).
+    private static final double QUIQUE_FUEL = 0.8;
+
     // =========================================================
     // FUELS
     // =========================================================
@@ -57,6 +65,7 @@ public class FuelSimulation {
         boolean collected;
         boolean handCollected;
         boolean launched;
+        boolean naNet;
 
         Fuel(double x, double y) {
             this.x = x;
@@ -93,7 +102,7 @@ public class FuelSimulation {
         for (Fuel fuel : fuels) {
 
             // Fuel livre pode interagir com Intake e robô.
-            if (!fuel.beingCollected && !fuel.collected && !fuel.launched) {
+            if (!fuel.beingCollected && !fuel.collected && !fuel.launched && !fuel.naNet) {
                 checkIntakeCollection(fuel, robotPose, intakePosition, intakeRunning);
 
                 if (!fuel.beingCollected) {
@@ -108,6 +117,8 @@ public class FuelSimulation {
 
             updateFuelPhysics(fuel, robotPose, dt);
         }
+
+        colisaoEntreFuels();
 
         logFuels();
     }
@@ -244,12 +255,31 @@ public class FuelSimulation {
         // Fuel arremessada
         // ---------------------------------------------------------
 
+        // ---------------------------------------------------------
+        // Fuel que caiu na Net: fica parada lá em cima
+        // ---------------------------------------------------------
+
+        if (fuel.naNet) {
+            return;
+        }
+
         if (fuel.launched) {
+            double alturaAntes = fuel.z;
+            double xAntes = fuel.x;
+
             fuel.velocityZ -= GRAVITY * dt;
 
             fuel.x += fuel.velocityX * dt;
             fuel.y += fuel.velocityY * dt;
             fuel.z += fuel.velocityZ * dt;
+
+            quicarNasParedes(fuel);
+
+            if (caiuNaNet(fuel, alturaAntes)) {
+                return;
+            }
+
+            bateuNaLateralDaBarge(fuel, xAntes);
 
             if (fuel.z <= FUEL_RADIUS) {
                 fuel.z = FUEL_RADIUS;
@@ -322,6 +352,198 @@ public class FuelSimulation {
         fuel.x += fuel.velocityX * dt;
         fuel.y += fuel.velocityY * dt;
         fuel.z = FUEL_RADIUS;
+
+        quicarNasParedes(fuel);
+        quicarNosObstaculos(fuel);
+    }
+
+    // =========================================================
+    // NET
+    // =========================================================
+
+    private int fuelsNaNet = 0;
+
+    /**
+     * A Fuel arremessada caiu na Net? Isso acontece quando ela está em
+     * cima da Barge e, descendo, passa pela altura da rede.
+     * Se caiu, ela para lá em cima e conta no placar.
+     */
+    private boolean caiuNaNet(Fuel fuel, double alturaAntes) {
+        double alturaDaRede = Campo.NET_ALTURA + FUEL_RADIUS;
+
+        boolean emCimaDaBarge = fuel.x >= Campo.BARGE_X_MIN && fuel.x <= Campo.BARGE_X_MAX;
+        boolean passouPelaRede = alturaAntes >= alturaDaRede && fuel.z < alturaDaRede;
+
+        if (!emCimaDaBarge || !passouPelaRede) {
+            return false;
+        }
+
+        fuel.z = alturaDaRede;
+        fuel.velocityX = 0.0;
+        fuel.velocityY = 0.0;
+        fuel.velocityZ = 0.0;
+        fuel.launched = false;
+        fuel.naNet = true;
+
+        fuelsNaNet++;
+        return true;
+    }
+
+    /**
+     * Fuel arremessada na altura da treliça (entre 1,57 m e o topo, 2,57 m)
+     * bate na lateral da Barge e volta. Mais baixa, passa por baixo; mais
+     * alta, passa por cima e pode cair na Net.
+     *
+     * Só conta como batida quando a Fuel ATRAVESSA a face da Barge neste
+     * ciclo (estava fora e entrou). Fuel que já está em cima da Barge,
+     * caindo na rede, não bate na lateral.
+     */
+    private void bateuNaLateralDaBarge(Fuel fuel, double xAntes) {
+        double faceAzul = Campo.BARGE_X_MIN - FUEL_RADIUS;
+        double faceVermelha = Campo.BARGE_X_MAX + FUEL_RADIUS;
+
+        boolean naAlturaDaTrelica = fuel.z > Campo.BARGE_TRELICA_ALTURA && fuel.z < Campo.BARGE_TOPO_ALTURA;
+        boolean estavaFora = xAntes <= faceAzul || xAntes >= faceVermelha;
+        boolean entrou = fuel.x > faceAzul && fuel.x < faceVermelha;
+
+        if (!naAlturaDaTrelica || !estavaFora || !entrou) {
+            return;
+        }
+
+        if (fuel.velocityX > 0.0) {
+            // Vinha do lado azul (x menor): volta para lá.
+            fuel.x = Campo.BARGE_X_MIN - FUEL_RADIUS;
+            fuel.velocityX = -fuel.velocityX * QUIQUE_PAREDE;
+        } else {
+            // Vinha do lado vermelho (x maior): volta para lá.
+            fuel.x = Campo.BARGE_X_MAX + FUEL_RADIUS;
+            fuel.velocityX = -fuel.velocityX * QUIQUE_PAREDE;
+        }
+    }
+
+    /** Quantas Fuels já caíram na Net. */
+    public int getFuelsNaNet() {
+        return fuelsNaNet;
+    }
+
+    // =========================================================
+    // OBSTÁCULOS (Reefs e Barge)
+    // =========================================================
+
+    /**
+     * Se a Fuel no chão entrou num Reef ou na Barge, volta para fora e
+     * quica: perde a velocidade que ia contra o obstáculo e volta com
+     * parte dela (QUIQUE_PAREDE).
+     *
+     * Fuel arremessada não entra aqui: ela passa por cima da Barge até a Net.
+     */
+    private void quicarNosObstaculos(Fuel fuel) {
+        Obstaculos.Batida batida = Obstaculos.empurrarParaFora(fuel.x, fuel.y, 0.0, 0.0, FUEL_RADIUS);
+
+        if (batida == null) {
+            return;
+        }
+
+        fuel.x = batida.x;
+        fuel.y = batida.y;
+
+        // Velocidade na direção do obstáculo (negativa = indo contra ele).
+        double contraOObstaculo = fuel.velocityX * batida.normalX + fuel.velocityY * batida.normalY;
+
+        if (contraOObstaculo < 0.0) {
+            fuel.velocityX -= (1.0 + QUIQUE_PAREDE) * contraOObstaculo * batida.normalX;
+            fuel.velocityY -= (1.0 + QUIQUE_PAREDE) * contraOObstaculo * batida.normalY;
+        }
+    }
+
+    // =========================================================
+    // FUEL x FUEL
+    // =========================================================
+
+    /** A Fuel está solta no chão? (não está no robô, na garra nem no ar) */
+    private boolean estaLivreNoChao(Fuel fuel) {
+        return !fuel.beingCollected && !fuel.collected && !fuel.handCollected && !fuel.launched && !fuel.naNet;
+    }
+
+    /**
+     * Confere cada par de Fuels soltas no chão. Se as duas estão se
+     * sobrepondo (distância menor que dois raios), afasta uma da outra
+     * e troca a velocidade entre elas, como bolas de sinuca.
+     */
+    private void colisaoEntreFuels() {
+        double distanciaMinima = 2.0 * FUEL_RADIUS;
+
+        for (int i = 0; i < fuels.size(); i++) {
+            for (int j = i + 1; j < fuels.size(); j++) {
+                Fuel a = fuels.get(i);
+                Fuel b = fuels.get(j);
+
+                if (!estaLivreNoChao(a) || !estaLivreNoChao(b)) {
+                    continue;
+                }
+
+                double dx = b.x - a.x;
+                double dy = b.y - a.y;
+                double distancia = Math.hypot(dx, dy);
+
+                if (distancia >= distanciaMinima || distancia < 0.0001) {
+                    continue; // não estão encostando
+                }
+
+                // Direção de A para B (vetor de tamanho 1).
+                double nx = dx / distancia;
+                double ny = dy / distancia;
+
+                // 1. Afasta as duas, metade para cada lado.
+                double sobreposicao = distanciaMinima - distancia;
+                a.x -= nx * sobreposicao / 2.0;
+                a.y -= ny * sobreposicao / 2.0;
+                b.x += nx * sobreposicao / 2.0;
+                b.y += ny * sobreposicao / 2.0;
+
+                // 2. Se estão se aproximando, troca velocidade na direção do choque.
+                double aproximacao = (b.velocityX - a.velocityX) * nx + (b.velocityY - a.velocityY) * ny;
+
+                if (aproximacao < 0.0) {
+                    double impulso = -(1.0 + QUIQUE_FUEL) * aproximacao / 2.0;
+
+                    a.velocityX -= impulso * nx;
+                    a.velocityY -= impulso * ny;
+                    b.velocityX += impulso * nx;
+                    b.velocityY += impulso * ny;
+                }
+            }
+        }
+    }
+
+    // =========================================================
+    // PAREDES
+    // =========================================================
+
+    /**
+     * Se a Fuel passou de uma parede, volta para dentro e quica:
+     * a velocidade naquela direção troca de sinal e perde força.
+     */
+    private void quicarNasParedes(Fuel fuel) {
+        double minimo = FUEL_RADIUS;
+        double maximoX = Campo.COMPRIMENTO - FUEL_RADIUS;
+        double maximoY = Campo.LARGURA - FUEL_RADIUS;
+
+        if (fuel.x < minimo) {
+            fuel.x = minimo;
+            fuel.velocityX = Math.abs(fuel.velocityX) * QUIQUE_PAREDE;
+        } else if (fuel.x > maximoX) {
+            fuel.x = maximoX;
+            fuel.velocityX = -Math.abs(fuel.velocityX) * QUIQUE_PAREDE;
+        }
+
+        if (fuel.y < minimo) {
+            fuel.y = minimo;
+            fuel.velocityY = Math.abs(fuel.velocityY) * QUIQUE_PAREDE;
+        } else if (fuel.y > maximoY) {
+            fuel.y = maximoY;
+            fuel.velocityY = -Math.abs(fuel.velocityY) * QUIQUE_PAREDE;
+        }
     }
 
     // =========================================================
@@ -479,5 +701,6 @@ public class FuelSimulation {
         }
 
         Logger.recordOutput("Simulation/Fuels", fuelPoses);
+        Logger.recordOutput("Placar/FuelsNaNet", fuelsNaNet);
     }
 }
