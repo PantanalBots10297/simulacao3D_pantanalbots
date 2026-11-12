@@ -1,0 +1,163 @@
+{
+  "hubs": [
+    {
+      "x": -8,
+      "y": -8,
+      "width": 1552,
+      "height": 832,
+      "state": {
+        "sidebar": {
+          "width": 264,
+          "expanded": [
+            "/AdvantageKit",
+            "/AdvantageKit/RealOutputs",
+            "/AdvantageKit/SystemStats",
+            "/RealOutputs/SubSystemSim/Intake",
+            "/RealOutputs",
+            "/RealOutputs/SubSystemSim",
+            "/RealOutputs/SubSystemSim/Hand",
+            "/RealOutputs/Simulation",
+            "/RealOutputs/Simulation/Fuels"
+          ]
+        },
+        "tabs": {
+          "selected": 3,
+          "tabs": [
+            {
+              "type": 0,
+              "title": "",
+              "controller": null,
+              "controllerUUID": "udmx2131dl6nfce9xdhmvxa5yfmb7opp",
+              "renderer": "",
+              "controlsHeight": 0
+            },
+            {
+              "type": 1,
+              "title": "Line Graph",
+              "controller": {
+                "leftSources": [],
+                "rightSources": [],
+                "discreteSources": [],
+                "leftLockedRange": null,
+                "rightLockedRange": null,
+                "leftUnitConversion": {
+                  "autoTarget": null,
+                  "preset": null
+                },
+                "rightUnitConversion": {
+                  "autoTarget": null,
+                  "preset": null
+                },
+                "leftFilter": 0,
+                "rightFilter": 0
+              },
+              "controllerUUID": "jl60giy7q88bzfpr725m1gp3uhh2vvus",
+              "renderer": null,
+              "controlsHeight": 200
+            },
+            {
+              "type": 2,
+              "title": "2D Field",
+              "controller": {
+                "sources": [],
+                "field": "FRC:Evergreen",
+                "orientation": 0,
+                "size": "large"
+              },
+              "controllerUUID": "h5mex1n8cu95178xociqv1sx75cmcp96",
+              "renderer": null,
+              "controlsHeight": 200
+            },
+            {
+              "type": 3,
+              "title": "3D Field",
+              "controller": {
+                "sources": [
+                  {
+                    "type": "robot",
+                    "logKey": "/RealOutputs/ODOMETRY",
+                    "logType": "Pose2d",
+                    "visible": true,
+                    "options": {
+                      "model": "MT TANK"
+                    }
+                  },
+                  {
+                    "type": "component",
+                    "logKey": "/RealOutputs/SubSystemSim/Intake/Gaveta",
+                    "logType": "Pose3d[]",
+                    "visible": true,
+                    "options": {}
+                  },
+                  {
+                    "type": "component",
+                    "logKey": "/RealOutputs/SubSystemSim/Intake/Coletor",
+                    "logType": "Pose3d[]",
+                    "visible": true,
+                    "options": {}
+                  },
+                  {
+                    "type": "component",
+                    "logKey": "/RealOutputs/SubSystemSim/Elevator",
+                    "logType": "Pose3d[]",
+                    "visible": true,
+                    "options": {}
+                  },
+                  {
+                    "type": "component",
+                    "logKey": "/RealOutputs/SubSystemSim/Hand",
+                    "logType": "Pose3d[]",
+                    "visible": true,
+                    "options": {}
+                  },
+                  {
+                    "type": "component",
+                    "logKey": "/RealOutputs/SubSystemSim/Hand/wheel1",
+                    "logType": "Pose3d[]",
+                    "visible": true,
+                    "options": {}
+                  },
+                  {
+                    "type": "component",
+                    "logKey": "/RealOutputs/SubSystemSim/Hand/wheel2",
+                    "logType": "Pose3d[]",
+                    "visible": true,
+                    "options": {}
+                  },
+                  {
+                    "type": "gamePiece",
+                    "logKey": "/RealOutputs/Simulation/Fuels",
+                    "logType": "Pose3d[]",
+                    "visible": true,
+                    "options": {
+                      "variant": "Algae"
+                    }
+                  }
+                ],
+                "game": "FRC:2025 Field (AndyMark)"
+              },
+              "controllerUUID": "ms3bmmex73pzyxylwoxiv05mbngva3mj",
+              "renderer": {
+                "cameraIndex": -2,
+                "orbitFov": 70,
+                "cameraPosition": [
+                  0.5682678491264728,
+                  0.39358592892954675,
+                  2.1936507482016827
+                ],
+                "cameraTarget": [
+                  -2.194826537279404,
+                  -0.29718766767192245,
+                  0.812103554998744
+                ]
+              },
+              "controlsHeight": 0
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "satellites": [],
+  "version": "26.0.0"
+}
