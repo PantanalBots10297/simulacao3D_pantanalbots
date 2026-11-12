@@ -25,7 +25,7 @@ public class FuelSimulation {
      * o modelo para a bola ficar no chão. A física NÃO usa isso.
      * Se a bola ainda aparecer no alto, aumente; se afundar no chão, diminua.
      */
-    private static final double FUEL_MODELO_DESLOCAMENTO_Z = 0.24;
+    private static final double FUEL_MODELO_DESLOCAMENTO_Z = 0.02;
 
     private static final double ROBOT_LENGTH = 0.984674;
     private static final double ROBOT_WIDTH = 0.8498;
