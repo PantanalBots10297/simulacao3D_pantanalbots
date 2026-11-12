@@ -8,6 +8,7 @@ import org.littletonrobotics.junction.Logger;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Campo;
 import frc.robot.Obstaculos;
 
@@ -23,9 +24,13 @@ public class FuelSimulation {
      * Só para DESENHAR no AdvantageScope. O modelo 3D da Fuel tem uma haste
      * embaixo da bola, então ele parece flutuar. Esse valor (em metros) abaixa
      * o modelo para a bola ficar no chão. A física NÃO usa isso.
-     * Se a bola ainda aparecer no alto, aumente; se afundar no chão, diminua.
+     *
+     * Dá para ajustar AO VIVO na simulação: na Sim GUI, janela "NetworkTables",
+     * em SmartDashboard > Fuel/AlturaModelo (muda o número e vê na hora).
+     * Bola com haste à mostra: aumente. Bola afundada no chão: diminua.
+     * Quando achar o valor bom, coloque aqui embaixo.
      */
-    private static final double FUEL_MODELO_DESLOCAMENTO_Z = 0.02;
+    private static final double FUEL_MODELO_DESLOCAMENTO_Z = 0.12;
 
     private static final double ROBOT_LENGTH = 0.984674;
     private static final double ROBOT_WIDTH = 0.8498;
@@ -700,12 +705,15 @@ public class FuelSimulation {
     // =========================================================
 
     private void logFuels() {
+        double deslocamentoModelo = SmartDashboard.getNumber("Fuel/AlturaModelo", FUEL_MODELO_DESLOCAMENTO_Z);
+        SmartDashboard.putNumber("Fuel/AlturaModelo", deslocamentoModelo);
+
         Pose3d[] fuelPoses = new Pose3d[fuels.size()];
 
         for (int i = 0; i < fuels.size(); i++) {
             Fuel fuel = fuels.get(i);
 
-            fuelPoses[i] = new Pose3d(fuel.x, fuel.y, fuel.z - FUEL_MODELO_DESLOCAMENTO_Z, new Rotation3d());
+            fuelPoses[i] = new Pose3d(fuel.x, fuel.y, fuel.z - deslocamentoModelo, new Rotation3d());
         }
 
         Logger.recordOutput("Simulation/Fuels", fuelPoses);
