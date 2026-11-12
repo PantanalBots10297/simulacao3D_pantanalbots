@@ -28,9 +28,10 @@ public class FuelSimulation {
      * Dá para ajustar AO VIVO na simulação: na Sim GUI, janela "NetworkTables",
      * em SmartDashboard > Fuel/AlturaModelo (muda o número e vê na hora).
      * Bola com haste à mostra: aumente. Bola afundada no chão: diminua.
-     * Quando achar o valor bom, coloque aqui embaixo.
+     * Valor testado na simulação: -0,052 (negativo = sobe o modelo, a bola
+     * fica inteira e apoiada no chão).
      */
-    private static final double FUEL_MODELO_DESLOCAMENTO_Z = 0.12;
+    private static final double FUEL_MODELO_DESLOCAMENTO_Z = -0.052;
 
     private static final double ROBOT_LENGTH = 0.984674;
     private static final double ROBOT_WIDTH = 0.8498;
