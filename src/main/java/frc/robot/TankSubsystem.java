@@ -4,11 +4,18 @@ import java.util.function.DoubleSupplier;
 
 import org.littletonrobotics.junction.Logger;
 
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPLTVController;
+
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -50,6 +57,9 @@ public class TankSubsystem extends SubsystemBase {
     private final PIDController rotationPID = new PIDController(HEADING_KP, 0.0, 0.0);
     private final FuelSimulation fuelSimulation = new FuelSimulation();
 
+    // Cinemática do tank (converte ChassisSpeeds <-> velocidade de cada lado).
+    private final DifferentialDriveKinematics kinematics = new DifferentialDriveKinematics(TRACK_WIDTH);
+
     private double leftVelocity = 0.0;
     private double rightVelocity = 0.0;
 
@@ -72,6 +82,53 @@ public class TankSubsystem extends SubsystemBase {
     public TankSubsystem() {
         rotationPID.enableContinuousInput(-180.0, 180.0);
         rotationPID.setTolerance(ANGLE_TOLERANCE);
+
+        configurePathPlanner();
+    }
+
+    // =========================================================
+    // PATHPLANNER
+    // =========================================================
+
+    private void configurePathPlanner() {
+        RobotConfig config;
+
+        try {
+            // Lê deploy/pathplanner/settings.json (gerado pelo app do PathPlanner).
+            config = RobotConfig.fromGUISettings();
+        } catch (Exception e) {
+            DriverStation.reportError(
+                    "Falha ao ler RobotConfig do PathPlanner: " + e.getMessage(),
+                    e.getStackTrace());
+            return;
+        }
+
+        AutoBuilder.configure(
+                this::getPose,                                          // posição atual
+                this::resetPose,                                        // reset da odometria
+                this::getRobotRelativeSpeeds,                           // velocidade atual do chassi
+                (speeds, feedforwards) -> driveRobotRelative(speeds),   // aplica velocidade
+                new PPLTVController(0.02),                              // controlador para tank (dt = 20 ms)
+                config,
+                () -> false,                                            // sem espelhar por aliança
+                this);
+    }
+
+    /** Velocidade atual do chassi (relativa ao robô), usada pelo PathPlanner. */
+    public ChassisSpeeds getRobotRelativeSpeeds() {
+        return new ChassisSpeeds(
+                (leftVelocity + rightVelocity) / 2.0,
+                0.0,
+                (rightVelocity - leftVelocity) / TRACK_WIDTH);
+    }
+
+    /** Recebe ChassisSpeeds do PathPlanner e converte para as velocidades dos lados. */
+    public void driveRobotRelative(ChassisSpeeds speeds) {
+        var wheels = kinematics.toWheelSpeeds(speeds);
+        wheels.desaturate(MAX_SPEED);
+
+        leftVelocity = wheels.leftMetersPerSecond;
+        rightVelocity = wheels.rightMetersPerSecond;
     }
 
     // =========================================================
@@ -119,7 +176,7 @@ public class TankSubsystem extends SubsystemBase {
         odometry.resetPosition(heading, leftDistanceMeters, rightDistanceMeters, pose);
     }
 
-    public Command CMDresetPose(Pose2d pose){
+    public Command CMDresetPose(Pose2d pose) {
         return Commands.runOnce(() -> resetPose(pose));
     }
 
