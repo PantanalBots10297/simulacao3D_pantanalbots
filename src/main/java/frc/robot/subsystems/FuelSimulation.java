@@ -80,6 +80,7 @@ public class FuelSimulation {
         boolean handCollected;
         boolean launched;
         boolean naNet;
+        boolean noProcessor;
 
         Fuel(double x, double y) {
             this.x = x;
@@ -116,7 +117,7 @@ public class FuelSimulation {
         for (Fuel fuel : fuels) {
 
             // Fuel livre pode interagir com Intake e robô.
-            if (!fuel.beingCollected && !fuel.collected && !fuel.launched && !fuel.naNet) {
+            if (!fuel.beingCollected && !fuel.collected && !fuel.launched && !fuel.naNet && !fuel.noProcessor) {
                 checkIntakeCollection(fuel, robotPose, intakePosition, intakeRunning);
 
                 if (!fuel.beingCollected) {
@@ -273,7 +274,7 @@ public class FuelSimulation {
         // Fuel que caiu na Net: fica parada lá em cima
         // ---------------------------------------------------------
 
-        if (fuel.naNet) {
+        if (fuel.naNet || fuel.noProcessor) {
             return;
         }
 
@@ -476,7 +477,7 @@ public class FuelSimulation {
 
     /** A Fuel está solta no chão? (não está no robô, na garra nem no ar) */
     private boolean estaLivreNoChao(Fuel fuel) {
-        return !fuel.beingCollected && !fuel.collected && !fuel.handCollected && !fuel.launched && !fuel.naNet;
+        return !fuel.beingCollected && !fuel.collected && !fuel.handCollected && !fuel.launched && !fuel.naNet && !fuel.noProcessor;
     }
 
     /**
@@ -552,12 +553,53 @@ public class FuelSimulation {
         }
 
         if (fuel.y < minimo) {
+            if (entrouNoProcessor(fuel, Campo.PROCESSOR_AZUL_X, -0.3)) {
+                return;
+            }
             fuel.y = minimo;
             fuel.velocityY = Math.abs(fuel.velocityY) * QUIQUE_PAREDE;
         } else if (fuel.y > maximoY) {
+            if (entrouNoProcessor(fuel, Campo.PROCESSOR_VERMELHO_X, Campo.LARGURA + 0.3)) {
+                return;
+            }
             fuel.y = maximoY;
             fuel.velocityY = -Math.abs(fuel.velocityY) * QUIQUE_PAREDE;
         }
+    }
+
+    // =========================================================
+    // PROCESSOR
+    // =========================================================
+
+    private int fuelsNoProcessor = 0;
+
+    /**
+     * A Fuel chegou na parede bem na abertura do Processor (na largura e
+     * na altura certa)? Então ela entra (some atrás da parede) e pontua.
+     */
+    private boolean entrouNoProcessor(Fuel fuel, double centroX, double yEscondida) {
+        boolean naFrenteDaAbertura = Math.abs(fuel.x - centroX) <= Campo.PROCESSOR_LARGURA / 2.0;
+        boolean naAlturaDaAbertura = fuel.z >= Campo.PROCESSOR_ALTURA_MIN && fuel.z <= Campo.PROCESSOR_ALTURA_MAX;
+
+        if (!naFrenteDaAbertura || !naAlturaDaAbertura) {
+            return false;
+        }
+
+        fuel.y = yEscondida;
+        fuel.z = 0.3;
+        fuel.velocityX = 0.0;
+        fuel.velocityY = 0.0;
+        fuel.velocityZ = 0.0;
+        fuel.launched = false;
+        fuel.noProcessor = true;
+
+        fuelsNoProcessor++;
+        return true;
+    }
+
+    /** Quantas Fuels já entraram no Processor. */
+    public int getFuelsNoProcessor() {
+        return fuelsNoProcessor;
     }
 
     // =========================================================
@@ -719,5 +761,6 @@ public class FuelSimulation {
 
         Logger.recordOutput("Simulation/Fuels", fuelPoses);
         Logger.recordOutput("Placar/FuelsNaNet", fuelsNaNet);
+        Logger.recordOutput("Placar/FuelsNoProcessor", fuelsNoProcessor);
     }
 }
