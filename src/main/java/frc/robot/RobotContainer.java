@@ -327,6 +327,19 @@ public class RobotContainer {
         driver.rightBumper().whileTrue(
                 tank.driveToPose(7.8, 4.0, 60)
         );
+
+        // =====================================================
+        // AUTÔNOMO POR BOTÃO (X liga; X de novo cancela)
+        // =====================================================
+
+        driver.x().toggleOnTrue(
+                Autos.algaeTres(
+                        tank,
+                        mSimIntake,
+                        mSimElevator,
+                        mSimHand
+                )
+        );
     }
 
     // =========================================================
