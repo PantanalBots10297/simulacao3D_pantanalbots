@@ -340,30 +340,67 @@ public class Autos {
                 coletarBola(tank, 2.200),
                 transferirParaGarra(),
                 Commands.either(
-                        pontuar(tank, elevator, hand, 7.45, 5.70, -90, 160),
+                        Commands.sequence(
+                                contornarReef(tank, 2.200, 5.90),
+                                pontuar(tank, elevator, hand, 7.30, 6.80, -90, 400, 160)
+                        ),
                         Commands.none(),
                         tank::isHandCollected
                 ),
 
                 // ---- Bola 2: Net ----
+                // volta pelo corredor (x = 2,70) para não passar pelo Reef
+                tank.driveToPoint(2.70, 5.90)
+                        .withTimeout(TIMEOUT_NAVEGACAO),
                 coletarBola(tank, 4.023),
                 transferirParaGarra(),
                 Commands.either(
-                        pontuar(tank, elevator, hand, 7.45, 5.70, -90, 160),
+                        Commands.sequence(
+                                contornarReef(tank, 4.023, 1.90),
+                                pontuar(tank, elevator, hand, 7.30, 1.60, -90, 400, 160)
+                        ),
                         Commands.none(),
                         tank::isHandCollected
                 ),
 
                 // ---- Bola 3: Processor ----
+                // volta pelo corredor (x = 2,70) para não passar pelo Reef
+                tank.driveToPoint(2.70, 1.90)
+                        .withTimeout(TIMEOUT_NAVEGACAO),
                 coletarBola(tank, 5.858),
                 transferirParaGarra(),
                 Commands.either(
-                        pontuar(tank, elevator, hand, 6.06, 1.20, 180, 100),
+                        Commands.sequence(
+                                contornarReef(tank, 5.858, 1.90),
+                                pontuar(tank, elevator, hand, 6.06, 1.20, 180, 100, 60)
+                        ),
                         Commands.none(),
                         tank::isHandCollected
                 )
 
         ).finallyDo(tank::stop);
+    }
+
+    // =========================================================
+    // DESVIO DO REEF
+    // =========================================================
+    // O robô anda em linha reta, então a rota direta da bola até a
+    // Net/Processor passa por cima do Reef (centro em 4,49; 4,02).
+    // Solução: recuar até o corredor x = 2,70 (a 1,8 m do Reef) e subir
+    // ou descer por ele até a altura do destino; dali a reta até o alvo
+    // passa a mais de 1,7 m do Reef.
+
+    private static Command contornarReef(
+            TankSubsystem tank,
+            double yBola,
+            double yCorredor) {
+
+        return Commands.sequence(
+                tank.driveToPoint(2.70, yBola)
+                        .withTimeout(TIMEOUT_NAVEGACAO),
+                tank.driveToPoint(2.70, yCorredor)
+                        .withTimeout(TIMEOUT_NAVEGACAO)
+        );
     }
 
     // =========================================================
@@ -377,6 +414,7 @@ public class Autos {
             double x,
             double y,
             double direcao,     // para onde o robô olha (graus)
+            double alturaElevador,
             double angulo) {    // ângulo do braço (graus)
 
         return Commands.sequence(
@@ -384,10 +422,11 @@ public class Autos {
                 tank.driveToPose(x, y, direcao)
                         .withTimeout(TIMEOUT_NAVEGACAO),
 
-                elevator.CMDsetPosition(400, 3),
+                elevator.CMDsetPosition(alturaElevador, 3),
 
                 Commands.waitUntil(
-                        () -> SimElevator.getRealPosition() > 390
+                        () -> Math.abs(SimElevator.getRealPosition()
+                                - alturaElevador) < 10
                 ).withTimeout(4),
 
                 hand.CMDsetAngle(angulo, 3),
