@@ -23,9 +23,9 @@ public class Autos {
 
     private static final String EXAMPLE_PATH = "AULA";
 
-    // Posição inicial assumida do robô
+    // Posição inicial do robô: Start Point do caminho AULA no PathPlanner
     private static final Pose2d POSE_INICIAL =
-            new Pose2d(7.2, 1.0, Rotation2d.fromDegrees(0));
+            new Pose2d(7.118, 1.402, Rotation2d.fromDegrees(0));
 
     // Posições das bolas no FuelSimulation
     private static final double COLETA_X = 1.90;
@@ -336,38 +336,29 @@ public class Autos {
 
                 tank.CMDresetPose(POSE_INICIAL),
 
+                // ---- Bola 1: Net ----
                 coletarBola(tank, 2.200),
                 transferirParaGarra(),
-
                 Commands.either(
-                        Commands.sequence(
-                                pontuar(tank, elevator, hand,
-                                        7.45, 5.70, 135)
-                        ),
+                        pontuar(tank, elevator, hand, 7.45, 5.70, -90, 160),
                         Commands.none(),
                         tank::isHandCollected
                 ),
 
+                // ---- Bola 2: Net ----
                 coletarBola(tank, 4.023),
                 transferirParaGarra(),
-
                 Commands.either(
-                        Commands.sequence(
-                                pontuar(tank, elevator, hand,
-                                        7.45, 5.70, 135)
-                        ),
+                        pontuar(tank, elevator, hand, 7.45, 5.70, -90, 160),
                         Commands.none(),
                         tank::isHandCollected
                 ),
 
+                // ---- Bola 3: Processor ----
                 coletarBola(tank, 5.858),
                 transferirParaGarra(),
-
                 Commands.either(
-                        Commands.sequence(
-                                pontuar(tank, elevator, hand,
-                                        5.90, 0.95, 100)
-                        ),
+                        pontuar(tank, elevator, hand, 6.06, 1.20, 180, 100),
                         Commands.none(),
                         tank::isHandCollected
                 )
@@ -376,7 +367,7 @@ public class Autos {
     }
 
     // =========================================================
-    // PONTUAÇÃO
+    // PONTUAÇÃO (agora com a direção do robô como parâmetro)
     // =========================================================
 
     private static Command pontuar(
@@ -385,17 +376,18 @@ public class Autos {
             SimHand hand,
             double x,
             double y,
-            double angulo) {
+            double direcao,     // para onde o robô olha (graus)
+            double angulo) {    // ângulo do braço (graus)
 
         return Commands.sequence(
 
-                tank.driveToPose(x, y, 90)
+                tank.driveToPose(x, y, direcao)
                         .withTimeout(TIMEOUT_NAVEGACAO),
 
                 elevator.CMDsetPosition(400, 3),
 
                 Commands.waitUntil(
-                        () -> SimElevator.getRealPosition() > 210
+                        () -> SimElevator.getRealPosition() > 390
                 ).withTimeout(4),
 
                 hand.CMDsetAngle(angulo, 3),
