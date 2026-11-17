@@ -23,19 +23,21 @@ public class Autos {
 
     private static final String EXAMPLE_PATH = "AULA";
 
-    // Posição inicial do robô: Start Point do caminho AULA no PathPlanner
     private static final Pose2d POSE_INICIAL =
             new Pose2d(7.118, 1.402, Rotation2d.fromDegrees(0));
 
-    // Posições das bolas no FuelSimulation
     private static final double COLETA_X = 1.90;
+    private static final double COLETA_X_SEGUNDA_BOLA = 1.78;
+    private static final double COLETA_X_TERCEIRA_BOLA = 1.75;
 
-    // Posição inicial do caminho AULA
     private static final double PATH_START_X = 7.12725;
     private static final double PATH_START_Y = 1.178;
     private static final double PATH_START_ANGLE = -178.1118;
 
-    private static final double TIMEOUT_NAVEGACAO = 8.0;
+    // Corredor lateral
+    private static final double LATERAL_X = 1.90;
+    private static final double CORREDOR_X = 2.70;
+    private static final double LINHA_NET_Y = 6.50;
 
     private Autos() {
     }
@@ -54,25 +56,10 @@ public class Autos {
         mSimElevator = elevator;
         mSimHand = hand;
 
-        NamedCommands.registerCommand(
-                "elevadorCima",
-                subirElevador()
-        );
-
-        NamedCommands.registerCommand(
-                "intakeOn",
-                intake.CMDintakeOn()
-        );
-
-        NamedCommands.registerCommand(
-                "intakeOff",
-                intake.CMDintakeOff()
-        );
-
-        NamedCommands.registerCommand(
-                "depositar",
-                depositGamePiece(tank)
-        );
+        NamedCommands.registerCommand("elevadorCima", subirElevador());
+        NamedCommands.registerCommand("intakeOn", intake.CMDintakeOn());
+        NamedCommands.registerCommand("intakeOff", intake.CMDintakeOff());
+        NamedCommands.registerCommand("depositar", depositGamePiece(tank));
     }
 
     // =========================================================
@@ -81,10 +68,11 @@ public class Autos {
 
     private static Command subirElevador() {
         return Commands.sequence(
-                mSimElevator.CMDsetPosition(400, 10),
+                mSimElevator.CMDsetPosition(400, 3),
 
+                // Só continua quando o elevador realmente subir.
                 Commands.waitUntil(
-                        () -> SimElevator.getRealPosition() >= 200
+                        () -> SimElevator.getRealPosition() >= 390
                 )
         );
     }
@@ -93,6 +81,7 @@ public class Autos {
         return Commands.sequence(
                 mSimElevator.CMDsetPosition(0, 3),
 
+                // Só continua quando o elevador realmente abaixar.
                 Commands.waitUntil(
                         () -> SimElevator.getRealPosition() <= 10
                 )
@@ -100,45 +89,25 @@ public class Autos {
     }
 
     // =========================================================
-    // TRANSFERÊNCIA DA BOLA PARA A GARRA
+    // TRANSFERÊNCIA DA BOLA PARA A HAND
     // =========================================================
 
-    private static Command transferirParaGarra() {
+    private static Command transferirParaGarra(TankSubsystem tank) {
 
         return Commands.sequence(
 
-                // Sobe o elevador
-                mSimElevator.CMDsetPosition(400, 3),
+                abaixarElevador(),
 
-                Commands.waitUntil(
-                        () -> SimElevator.getRealPosition() > 390
-                ),
-
-                // Centraliza a garra
                 mSimHand.CMDsetAngle(0, 3),
 
                 Commands.waitUntil(
                         () -> Math.abs(SimHand.getRealAngle()) < 5
                 ),
 
-                // Abaixa o elevador para aproximar a garra da bola
-                mSimElevator.CMDsetPosition(0, 3),
+                // Espera a Fuel armazenada alcançar a garra.
+                Commands.waitUntil(tank::isHandCollected),
 
-                Commands.waitUntil(
-                        () -> SimElevator.getRealPosition() < 10
-                ),
-
-                // Aciona os roletes para capturar
-                mSimHand.CMDsetVelocity(-1),
-
-                Commands.waitSeconds(1),
-
-                mSimHand.CMDsetVelocity(0),
-
-                // Dá tempo para a simulação registrar a captura
-                Commands.waitUntil(
-                        () -> true
-                ).withTimeout(0.2)
+                subirElevador()
         );
     }
 
@@ -148,30 +117,68 @@ public class Autos {
 
     private static Command coletarBola(
             TankSubsystem tank,
-            double y) {
+            double y,
+            double xColeta) {
 
         return Commands.sequence(
 
-                // Prepara o elevador
                 subirElevador(),
 
-                // Vai para perto da bola, virado para ela
-                tank.driveToPose(2.70, y, 180)
-                        .withTimeout(TIMEOUT_NAVEGACAO),
+                tank.driveToPose(
+                        CORREDOR_X,
+                        y,
+                        180
+                ),
 
-                // Abre e liga o intake
                 mSimIntake.CMDintakeOn(),
 
-                // Avança até a posição de coleta
-                tank.driveToPoint(COLETA_X, y)
-                        .withTimeout(TIMEOUT_NAVEGACAO),
+                tank.driveToPoint(
+                        xColeta,
+                        y
+                ),
 
-                // Aguarda a bola entrar no robô
-                Commands.waitUntil(
-                        tank::isFuelInsideRobot
-                ).withTimeout(5),
+                // Não avança enquanto a bola não estiver armazenada.
+                Commands.waitUntil(tank::isFuelInsideRobot),
 
-                // Desliga e recolhe o intake
+                mSimIntake.CMDintakeOff()
+        );
+    }
+
+    // =========================================================
+    // COLETAR A PRÓXIMA BOLA
+    // =========================================================
+
+    private static Command coletarProximaBola(
+            TankSubsystem tank,
+            double yAnterior,
+            double yProxima,
+            double xColeta) {
+
+        return Commands.sequence(
+
+                subirElevador(),
+
+                tank.driveToPose(
+                        CORREDOR_X,
+                        yAnterior,
+                        180
+                ),
+
+                tank.driveToPose(
+                        CORREDOR_X,
+                        yProxima,
+                        180
+                ),
+
+                mSimIntake.CMDintakeOn(),
+
+                tank.driveToPoint(
+                        xColeta,
+                        yProxima
+                ),
+
+                Commands.waitUntil(tank::isFuelInsideRobot),
+
                 mSimIntake.CMDintakeOff()
         );
     }
@@ -183,6 +190,7 @@ public class Autos {
     public static Command examplePath(TankSubsystem tank) {
 
         try {
+
             PathPlannerPath path =
                     PathPlannerPath.fromPathFile(EXAMPLE_PATH);
 
@@ -214,6 +222,7 @@ public class Autos {
     public static Command autoCompleto(TankSubsystem tank) {
 
         try {
+
             PathPlannerPath path =
                     PathPlannerPath.fromPathFile(EXAMPLE_PATH);
 
@@ -222,50 +231,39 @@ public class Autos {
                             PATH_START_X,
                             PATH_START_Y,
                             PATH_START_ANGLE
-                    ).withTimeout(TIMEOUT_NAVEGACAO);
+                    );
 
             Command seguirPath =
                     AutoBuilder.followPath(path);
 
             return Commands.sequence(
 
-                    // 1. Define a pose inicial
                     tank.CMDresetPose(POSE_INICIAL),
 
-                    // 2. Coleta a primeira bola
-                    coletarBola(tank, 2.200),
+                    coletarBola(
+                            tank,
+                            2.200,
+                            COLETA_X
+                    ),
 
-                    // 3. Transfere para a garra
-                    transferirParaGarra(),
+                    transferirParaGarra(tank),
 
-                    // 4. Só continua se a garra realmente capturou
                     Commands.either(
 
                             Commands.sequence(
 
-                                    // 5. Vai até o início do caminho AULA
                                     irParaInicioDoPath,
 
-                                    // 6. Segue o PathPlanner
                                     seguirPath,
 
-                                    // 7. Ajusta o ângulo da garra
-                                    mSimHand.CMDsetAngle(60, 3),
-
-                                    Commands.waitUntil(
-                                            () -> Math.abs(
-                                                    SimHand.getRealAngle() - 60
-                                            ) < 5
-                                    ).withTimeout(4),
-
-                                    // 8. Deposita
-                                    depositGamePiece(tank),
-
-                                    // 9. Retorna a garra ao centro
-                                    mSimHand.CMDsetAngle(0, 3)
+                                    prepararELancar(
+                                            tank,
+                                            mSimElevator,
+                                            mSimHand,
+                                            60
+                                    )
                             ),
 
-                            // Se não capturou, não tenta depositar
                             Commands.none(),
 
                             tank::isHandCollected
@@ -291,34 +289,143 @@ public class Autos {
     public static Command quadrado(TankSubsystem tank) {
 
         return Commands.sequence(
+
                 tank.driveToPose(2.0, 2.0, 0),
                 tank.driveToPose(4.0, 2.0, 90),
                 tank.driveToPose(4.0, 5.0, 180),
                 tank.driveToPose(2.0, 5.0, -90)
+
         ).finallyDo(tank::stop);
     }
 
     public static Command reto(TankSubsystem tank) {
 
         return Commands.sequence(
+
                 tank.driveToPose(2.0, 2.0, 0),
                 tank.driveToPose(5.0, 2.0, 0)
+
         ).finallyDo(tank::stop);
     }
 
     public static Command autoZigZag(TankSubsystem tank) {
 
         return Commands.sequence(
+
                 tank.CMDresetPose(POSE_INICIAL),
-                coletarBola(tank, 2.200)
+
+                coletarBola(
+                        tank,
+                        2.200,
+                        COLETA_X
+                )
+
         ).finallyDo(tank::stop);
     }
 
     public static Command navegarParaPoseAlvo(TankSubsystem tank) {
 
         return Commands.sequence(
+
                 tank.driveToPose(7.8, 4.0, 60),
+
                 Commands.runOnce(tank::stop)
+        );
+    }
+
+    // =========================================================
+    // VOLTAR DA COLETA PARA A NET
+    // =========================================================
+
+    private static Command voltarDaColetaParaNet(
+            TankSubsystem tank,
+            double yColeta,
+            double xNet,
+            double yNet,
+            double direcao) {
+
+        return Commands.sequence(
+
+                tank.driveToPose(
+                        CORREDOR_X,
+                        yColeta,
+                        180
+                ),
+
+                tank.driveToPose(
+                        LATERAL_X,
+                        LINHA_NET_Y,
+                        180
+                ),
+
+                tank.driveToPose(
+                        xNet,
+                        yNet,
+                        direcao
+                )
+        );
+    }
+
+    // =========================================================
+    // DESLOCAMENTO PELA LATERAL ATÉ A NET
+    // =========================================================
+
+    private static Command irParaNet(
+            TankSubsystem tank,
+            double x,
+            double y,
+            double direcao) {
+
+        return Commands.sequence(
+
+                tank.driveToPose(
+                        LATERAL_X,
+                        LINHA_NET_Y,
+                        180
+                ),
+
+                tank.driveToPose(
+                        x,
+                        y,
+                        direcao
+                )
+        );
+    }
+
+    // =========================================================
+    // CONTORNAR O REEF PARA IR AO PROCESSOR
+    // =========================================================
+
+    private static Command contornarReef(
+            TankSubsystem tank,
+            double yColeta,
+            double xCorredor) {
+
+        return Commands.sequence(
+
+                tank.driveToPose(
+                        CORREDOR_X,
+                        yColeta,
+                        180
+                ),
+
+                tank.driveToPose(
+                        CORREDOR_X,
+                        1.90,
+                        180
+                ),
+
+                tank.driveToPose(
+                        xCorredor,
+                        1.90,
+                        180
+                ),
+
+                tank.driveToPose(
+                        6.06,
+                        1.20,
+                        180
+                )
         );
     }
 
@@ -332,34 +439,131 @@ public class Autos {
             SimElevator elevator,
             SimHand hand) {
 
+        mSimIntake = intake;
+        mSimElevator = elevator;
+        mSimHand = hand;
+
         return Commands.sequence(
 
                 tank.CMDresetPose(POSE_INICIAL),
 
-                // ---- Bola 1: Net ----
-                coletarBola(tank, 2.200),
-                transferirParaGarra(),
+                // =============================================
+                // BOLA 1
+                // =============================================
+
+                coletarBola(
+                        tank,
+                        2.200,
+                        COLETA_X
+                ),
+
+                transferirParaGarra(tank),
+
+                // =============================================
+                // BOLA 2
+                // A primeira continua guardada na garra.
+                // A segunda fica armazenada dentro do robô.
+                // =============================================
+
+                coletarProximaBola(
+                        tank,
+                        2.200,
+                        4.023,
+                        COLETA_X_SEGUNDA_BOLA
+                ),
+
+                // =============================================
+                // PONTUAR BOLA 1 NA NET
+                // =============================================
+
                 Commands.either(
-                        pontuar(tank, elevator, hand, 7.45, 5.70, -90, 160),
+
+                        Commands.sequence(
+
+                                voltarDaColetaParaNet(
+                                        tank,
+                                        4.023,
+                                        7.45,
+                                        5.70,
+                                        -90
+                                ),
+
+                                pontuarDepoisDeNavegar(
+                                        tank,
+                                        elevator,
+                                        hand,
+                                        160
+                                )
+                        ),
+
                         Commands.none(),
+
                         tank::isHandCollected
                 ),
 
-                // ---- Bola 2: Net ----
-                coletarBola(tank, 4.023),
-                transferirParaGarra(),
+                // =============================================
+                // TRANSFERIR E PONTUAR BOLA 2
+                // =============================================
+
+                transferirParaGarra(tank),
+
                 Commands.either(
-                        pontuar(tank, elevator, hand, 7.45, 5.70, -90, 160),
+
+                        pontuarDepoisDeNavegar(
+                                tank,
+                                elevator,
+                                hand,
+                                160
+                        ),
+
                         Commands.none(),
+
                         tank::isHandCollected
                 ),
 
-                // ---- Bola 3: Processor ----
-                coletarBola(tank, 5.858),
-                transferirParaGarra(),
+                // =============================================
+                // BOLA 3
+                // =============================================
+
+                tank.driveToPose(
+                        CORREDOR_X,
+                        5.70,
+                        180
+                ),
+
+                coletarProximaBola(
+                        tank,
+                        5.70,
+                        5.858,
+                        COLETA_X_TERCEIRA_BOLA
+                ),
+
+                transferirParaGarra(tank),
+
+                // =============================================
+                // PONTUAR BOLA 3 NO PROCESSOR AZUL
+                // =============================================
+
                 Commands.either(
-                        pontuar(tank, elevator, hand, 6.06, 1.20, 180, 100),
+
+                        Commands.sequence(
+
+                                contornarReef(
+                                        tank,
+                                        5.858,
+                                        1.90
+                                ),
+
+                                pontuarDepoisDeNavegar(
+                                        tank,
+                                        elevator,
+                                        hand,
+                                        57
+                                )
+                        ),
+
                         Commands.none(),
+
                         tank::isHandCollected
                 )
 
@@ -367,7 +571,61 @@ public class Autos {
     }
 
     // =========================================================
-    // PONTUAÇÃO (agora com a direção do robô como parâmetro)
+    // PREPARAR E LANÇAR
+    // =========================================================
+
+    private static Command pontuarDepoisDeNavegar(
+            TankSubsystem tank,
+            SimElevator elevator,
+            SimHand hand,
+            double angulo) {
+
+        return prepararELancar(
+                tank,
+                elevator,
+                hand,
+                angulo
+        );
+    }
+
+    private static Command prepararELancar(
+            TankSubsystem tank,
+            SimElevator elevator,
+            SimHand hand,
+            double angulo) {
+
+        return Commands.sequence(
+
+                // Só inicia se ainda houver bola na garra.
+                Commands.waitUntil(tank::isHandCollected),
+
+                elevator.CMDsetPosition(400, 3),
+
+                Commands.waitUntil(
+                        () -> SimElevator.getRealPosition() >= 390
+                ),
+
+                hand.CMDsetAngle(angulo, 3),
+
+                Commands.waitUntil(
+                        () -> Math.abs(
+                                SimHand.getRealAngle() - angulo
+                        ) < 5
+                ),
+
+                // Confere novamente antes de lançar.
+                Commands.either(
+                        depositGamePiece(tank),
+                        Commands.none(),
+                        tank::isHandCollected
+                ),
+
+                hand.CMDsetAngle(0, 3)
+        );
+    }
+
+    // =========================================================
+    // PONTUAÇÃO COM NAVEGAÇÃO
     // =========================================================
 
     private static Command pontuar(
@@ -376,35 +634,39 @@ public class Autos {
             SimHand hand,
             double x,
             double y,
-            double direcao,     // para onde o robô olha (graus)
-            double angulo) {    // ângulo do braço (graus)
+            double direcao,
+            double angulo) {
+
+        Command navegar;
+
+        if (y > 4.0) {
+
+            navegar = irParaNet(
+                    tank,
+                    x,
+                    y,
+                    direcao
+            );
+
+        } else {
+
+            navegar = tank.driveToPose(
+                    x,
+                    y,
+                    direcao
+            );
+        }
 
         return Commands.sequence(
 
-                tank.driveToPose(x, y, direcao)
-                        .withTimeout(TIMEOUT_NAVEGACAO),
+                navegar,
 
-                elevator.CMDsetPosition(400, 3),
-
-                Commands.waitUntil(
-                        () -> SimElevator.getRealPosition() > 390
-                ).withTimeout(4),
-
-                hand.CMDsetAngle(angulo, 3),
-
-                Commands.waitUntil(
-                        () -> Math.abs(
-                                SimHand.getRealAngle() - angulo
-                        ) < 5
-                ).withTimeout(4),
-
-                Commands.either(
-                        depositGamePiece(tank),
-                        Commands.none(),
-                        tank::isHandCollected
-                ),
-
-                hand.CMDsetAngle(0, 3)
+                pontuarDepoisDeNavegar(
+                        tank,
+                        elevator,
+                        hand,
+                        angulo
+                )
         );
     }
 
