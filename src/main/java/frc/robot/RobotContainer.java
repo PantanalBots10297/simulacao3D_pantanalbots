@@ -69,7 +69,6 @@ public class RobotContainer {
 
     public RobotContainer() {
 
-        // Configura os comandos autônomos.
         Autos.configurar(
                 tank,
                 mSimIntake,
@@ -81,7 +80,6 @@ public class RobotContainer {
 
         configureBindings();
 
-        // Para o robô quando estiver desabilitado.
         RobotModeTriggers.disabled().onTrue(
                 Commands.runOnce(tank::stop)
                         .ignoringDisable(true)
@@ -321,18 +319,10 @@ public class RobotContainer {
         driver.y().onTrue(deposit());
 
         // =====================================================
-        // NAVEGAÇÃO MANUAL
+        // AUTÔNOMO ALGA (3) PELO RB
         // =====================================================
 
-        driver.rightBumper().whileTrue(
-                tank.driveToPose(7.8, 4.0, 60)
-        );
-
-        // =====================================================
-        // AUTÔNOMO POR BOTÃO (X liga; X de novo cancela)
-        // =====================================================
-
-        driver.x().toggleOnTrue(
+        driver.rightBumper().toggleOnTrue(
                 Autos.algaeTres(
                         tank,
                         mSimIntake,
